@@ -40,10 +40,7 @@ bool StartGame(const std::string& gamePath)
     si.cb = sizeof(si);
     ZeroMemory(&pi, sizeof(pi));
 
-    // Combine the game path with the -nolauncher argument
-    std::string commandLine = "\"" + gamePath + "\" -nolauncher";
-
-    if (CreateProcessA(NULL, const_cast<char*>(commandLine.c_str()), NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi))
+    if (CreateProcessA(NULL, const_cast<char*>(gamePath.c_str()), NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi))
     {
         CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);
