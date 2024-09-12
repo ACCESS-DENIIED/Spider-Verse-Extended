@@ -4,21 +4,20 @@ A lightweight DLL injector for Spider-Man PC and Miles Morales PC games.
 
 ## Features
 
-- Automatic game detection and launch
+- Automatic script injection
 - DLL injection from a 'scripts' folder
 - Support for both Spider-Man PC and Miles Morales PC
 
 ## Usage
 
-1. Place `SMPC Script Hook.exe` in your game directory.
+1. Download and place the dll files from the zip in the Releases page into your game directory.
 2. Create a `scripts` folder in the same directory.
-3. Put your DLL files in the `scripts` folder.
-4. Run `SMPC Script Hook.exe`.
+3. Put your DLL files (Scripts/Mods) in the `scripts` folder.
+4. Launch the game.
 
 ## How It Works
 
-1. Detects or launches the game process
-2. Scans the `scripts` folder for DLLs
+1. Scans the `scripts` folder for DLLs
 3. Injects found DLLs into the game process
 
 ## Requirements
