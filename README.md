@@ -1,4 +1,4 @@
-# SMPC Script Hook
+# Spider-Verse Extended
 
 A lightweight DLL injector for Spider-Man PC and Miles Morales PC games.
 
