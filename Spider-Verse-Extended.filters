@@ -15,8 +15,13 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="SMPC Script Hook.cpp">
+    <ClCompile Include="Spider-Verse-Extended.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Spider-Verse-Extended.def">
+      <Filter>Source Files</Filter>
+    </None>
   </ItemGroup>
 </Project>
