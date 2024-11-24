@@ -1,38 +1,44 @@
 # Spider-Verse Extended
 
-A lightweight DLL injector for Spider-Man PC and Miles Morales PC games.
+A DLL proxy injector specifically designed for Marvel's Spider-Man Remastered and Marvel's Spider-Man: Miles Morales PC games. This tool enables dynamic mod loading by implementing a proxy for AMD's AGS library.
+
+## Overview
+
+Spider-Verse Extended works by masquerading as `amd_ags_x64.dll`, implementing the AMD Gaming Services (AGS) interface while providing additional functionality for mod injection. This approach ensures compatibility and stability with the base game while enabling mod support.
 
 ## Features
 
-- Automatic script injection
-- DLL injection from a 'scripts' folder
-- Support for both Spider-Man PC and Miles Morales PC
+- Seamless DLL proxy implementation of AMD AGS
+- Automatic mod detection and injection
+- Dynamic loading of multiple mods from a dedicated `scripts` folder
+- Support for both Marvel's Spider-Man Remastered and Miles Morales PC
+- Lightweight and efficient implementation
+- No modification of original game files
 
-## Usage
+## Installation
 
-1. Download and place the dll files from the zip in the Releases page into your game directory.
-2. Create a `scripts` folder in the same directory.
-3. Put your DLL files (Scripts/Mods) in the `scripts` folder.
-4. Launch the game.
+1. Download the latest release from the Releases page
+2. Extract `amd_ags_x64.dll` to your game's installation directory
+3. Create a `scripts` folder in the same directory
+4. Place your mod DLLs in the `scripts` folder
+5. Launch the game normally
 
-## How It Works
+## Technical Details
 
-1. Scans the `scripts` folder for DLLs
-3. Injects found DLLs into the game process
+The injector works by:
+1. Implementing the complete AMD AGS SDK interface
+2. Forwarding all AGS calls to the original DLL
+3. Scanning and loading mod DLLs from the `scripts` folder during initialization
+4. Managing mod injection without interfering with the game's core functionality
 
 ## Requirements
 
 - Windows OS
-- Spider-Man PC or Miles Morales PC installed
+- Marvel's Spider-Man Remastered PC or Marvel's Spider-Man: Miles Morales PC
+- Visual C++ Redistributable (latest version recommended)
 
-## Disclaimer
+## Building from Source
 
-This tool is for educational and modding purposes only. Use at your own risk.
-
-## Contributing
-
-Contributions are welcome! Feel free to submit issues or pull requests.
-
-## Author
-
-ACCESS_DENIIED
+The project can be compiled using:
+```bash
+g++ -shared -o amd_ags_x64.dll Spider-Verse-Extended.cpp -lstdc++
