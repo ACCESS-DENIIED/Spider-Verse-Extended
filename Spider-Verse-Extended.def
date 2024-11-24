@@ -35,4 +35,3 @@ agsDriverExtensionsDX12_SetMarker=amd_ags_x64.agsDriverExtensionsDX12_SetMarker 
 agsGetVersionNumber=amd_ags_x64.agsGetVersionNumber @34
 agsInitialize=amd_ags_x64.agsInitialize @35
 agsSetDisplayMode=amd_ags_x64.agsSetDisplayMode @36
-

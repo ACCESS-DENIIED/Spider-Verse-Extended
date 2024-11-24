@@ -6,6 +6,9 @@
 #include <thread>
 #include <vector>
 
+// Compile with
+// g++ -shared -o amd_ags_x64.dll Spider-Verse-Extended.cpp -Ic:/tools/msys64/mingw64/include -Lc:/tools/msys64/mingw64/lib -lstdc++
+
 // Function pointer declarations for amd_ags_x64.dll
 typedef int (WINAPI *agsInitialize_t)(int, void*, void*, void*);
 typedef int (WINAPI *agsDeInitialize_t)(void*);
@@ -93,10 +96,15 @@ void Log(const std::string& message) {
 }
 
 // Function to load the original DLL and get function pointers
-void LoadOriginalDll() {
-    std::string originalDllPath = "amd_ags_x64_orig.dll";
+bool LoadOriginalDll() {
+    if (hOriginalDll) return true; // Already loaded
     
-    hOriginalDll = LoadLibraryA(originalDllPath.c_str());
+    hOriginalDll = LoadLibraryA("amd_ags_x64_orig.dll");
+    if (!hOriginalDll) {
+        Log("Failed to load original amd_ags_x64_orig.dll");
+        return false;
+    }
+
     if (hOriginalDll) {
         pagsInitialize = (agsInitialize_t)GetProcAddress(hOriginalDll, "agsInitialize");
         pagsDeInitialize = (agsDeInitialize_t)GetProcAddress(hOriginalDll, "agsDeInitialize");
@@ -137,48 +145,129 @@ void LoadOriginalDll() {
     } else {
         Log("Failed to load original amd_ags_x64_orig.dll");
     }
+    return true;
 }
+
+// Global critical section
+CRITICAL_SECTION g_cs = { 0 };
+
+// Global vector to store loaded modules
+std::vector<HMODULE> g_loadedModules;
 
 // Function to inject DLLs from the "scripts" folder
 void InjectScripts() {
-    std::filesystem::path currentDir = std::filesystem::current_path();
-    std::string scriptFolderPath = "scripts";
-    std::filesystem::path scriptsDir = currentDir / scriptFolderPath;
+    try {
+        std::filesystem::path currentDir = std::filesystem::current_path();
+        std::string scriptFolderPath = "scripts";
+        std::filesystem::path scriptsDir = currentDir / scriptFolderPath;
 
-    if (!std::filesystem::exists(scriptsDir)) {
-        Log("Error: 'scripts' folder not found in the game directory.");
-        return;
-    }
+        if (!std::filesystem::exists(scriptsDir)) {
+            Log("Error: 'scripts' folder not found in the game directory.");
+            return;
+        }
 
-    DWORD pID = GetCurrentProcessId();
-    HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pID);
-    if (hProcess) {
-        for (const auto& entry : std::filesystem::directory_iterator(scriptsDir)) {
-            if (entry.is_regular_file() && entry.path().extension() == ".dll") {
-                std::string dllPath = entry.path().string();
-                HMODULE hModule = LoadLibraryA(dllPath.c_str());
-                if (hModule) {
-                    Log("Loaded: " + dllPath);
-                } else {
-                    Log("Failed to load: " + dllPath);
+        EnterCriticalSection(&g_cs);
+        bool criticalSectionEntered = true;
+
+        try {
+            for (const auto& entry : std::filesystem::directory_iterator(scriptsDir)) {
+                if (entry.is_regular_file() && entry.path().extension() == ".dll") {
+                    std::string dllPath = entry.path().string();
+                    
+                    // First check if module is already loaded
+                    HMODULE hModule = GetModuleHandleA(dllPath.c_str());
+                    if (!hModule) {
+                        // Add error handling for LoadLibrary
+                        SetErrorMode(SEM_FAILCRITICALERRORS); // Prevent error dialog boxes
+                        hModule = LoadLibraryA(dllPath.c_str());
+                        
+                        if (hModule) {
+                            Log("Loaded: " + dllPath);
+                            g_loadedModules.push_back(hModule);
+                        } else {
+                            DWORD error = GetLastError();
+                            Log("Failed to load: " + dllPath + " (Error: " + std::to_string(error) + ")");
+                        }
+                    } else {
+                        Log("Module already loaded: " + dllPath);
+                    }
                 }
             }
         }
-        CloseHandle(hProcess);
+        catch (...) {
+            if (criticalSectionEntered) {
+                LeaveCriticalSection(&g_cs);
+            }
+            throw; // Re-throw the exception
+        }
+
+        if (criticalSectionEntered) {
+            LeaveCriticalSection(&g_cs);
+        }
+    }
+    catch (const std::exception& e) {
+        Log("Exception in InjectScripts: " + std::string(e.what()));
+    }
+    catch (...) {
+        Log("Unknown exception in InjectScripts");
     }
 }
 
 // DLL entry point
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved) {
     switch (ul_reason_for_call) {
-    case DLL_PROCESS_ATTACH:
-        LoadOriginalDll();
-        CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)InjectScripts, NULL, 0, NULL);
+    case DLL_PROCESS_ATTACH: {
+        bool success = true;
+        try {
+            InitializeCriticalSection(&g_cs);
+            if (!LoadOriginalDll()) {
+                DeleteCriticalSection(&g_cs);
+                return FALSE;
+            }
+            
+            HANDLE hThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)InjectScripts, NULL, 0, NULL);
+            if (hThread) {
+                CloseHandle(hThread);
+            } else {
+                Log("Failed to create injection thread");
+                success = false;
+            }
+        }
+        catch (const std::exception& e) {
+            Log("Exception in DLL_PROCESS_ATTACH: " + std::string(e.what()));
+            success = false;
+        }
+        catch (...) {
+            Log("Unknown exception in DLL_PROCESS_ATTACH");
+            success = false;
+        }
+        return success;
+    }
+
+    case DLL_PROCESS_DETACH: {
+        try {
+            EnterCriticalSection(&g_cs);
+            for (auto& module : g_loadedModules) {
+                if (module) {
+                    FreeLibrary(module);
+                    module = NULL;
+                }
+            }
+            g_loadedModules.clear();
+            LeaveCriticalSection(&g_cs);
+
+            if (hOriginalDll) {
+                FreeLibrary(hOriginalDll);
+                hOriginalDll = NULL;
+            }
+            
+            DeleteCriticalSection(&g_cs);
+        }
+        catch (...) {
+            Log("Exception during cleanup in DLL_PROCESS_DETACH");
+        }
         break;
-    case DLL_PROCESS_DETACH:
-        if (hOriginalDll)
-            FreeLibrary(hOriginalDll);
-        break;
+    }
     }
     return TRUE;
 }
