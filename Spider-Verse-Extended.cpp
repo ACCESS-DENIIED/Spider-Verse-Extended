@@ -88,6 +88,21 @@ agsDriverExtensionsDX12_SetMarker_t pagsDriverExtensionsDX12_SetMarker = NULL;
 // Handle to the real amd_ags_x64.dll
 HMODULE hOriginalDll = NULL;
 
+// Global event for signaling shutdown
+HANDLE g_shutdownEvent = NULL;
+
+// Global critical section
+CRITICAL_SECTION g_cs = { 0 };
+
+// Global vector to store loaded modules
+std::vector<HMODULE> g_loadedModules;
+
+// Global flag to track if we're shutting down
+volatile bool g_isShuttingDown = false;
+
+// Global variable to store the thread handle
+HANDLE g_threadHandle = NULL;
+
 // Function to log messages
 void Log(const std::string& message) {
     std::ofstream logFile("C:\\SMPC_Script_Hook.log", std::ios::app);
@@ -148,16 +163,12 @@ bool LoadOriginalDll() {
     return true;
 }
 
-// Global critical section
-CRITICAL_SECTION g_cs = { 0 };
-
-// Global vector to store loaded modules
-std::vector<HMODULE> g_loadedModules;
-
 // Function to inject DLLs from the "scripts" folder
 void InjectScripts() {
     try {
         std::filesystem::path currentDir = std::filesystem::current_path();
+        Log("Current directory: " + currentDir.string());  // Log the current directory for verification
+
         std::string scriptFolderPath = "scripts";
         std::filesystem::path scriptsDir = currentDir / scriptFolderPath;
 
@@ -173,11 +184,11 @@ void InjectScripts() {
             for (const auto& entry : std::filesystem::directory_iterator(scriptsDir)) {
                 if (entry.is_regular_file() && entry.path().extension() == ".dll") {
                     std::string dllPath = entry.path().string();
-                    
+                    Log("Attempting to load: " + dllPath);  // Log the path being loaded
+
                     // First check if module is already loaded
                     HMODULE hModule = GetModuleHandleA(dllPath.c_str());
                     if (!hModule) {
-                        // Add error handling for LoadLibrary
                         SetErrorMode(SEM_FAILCRITICALERRORS); // Prevent error dialog boxes
                         hModule = LoadLibraryA(dllPath.c_str());
                         
@@ -213,61 +224,37 @@ void InjectScripts() {
     }
 }
 
+// Initialization function called from a safe location, not directly from DllMain
+void Initialize() {
+    g_shutdownEvent = CreateEvent(NULL, TRUE, FALSE, NULL); // Manual-reset event
+    InitializeCriticalSection(&g_cs);
+    if (!LoadOriginalDll()) {
+        Log("Failed to load original DLL.");
+        // Handle error appropriately
+    }
+    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)InjectScripts, NULL, 0, NULL);
+}
+
+// Cleanup function called from a safe location
+void Cleanup() {
+    SetEvent(g_shutdownEvent); // Signal all threads to shutdown
+    WaitForSingleObject(g_threadHandle, INFINITE); // Wait for the thread to terminate
+    CloseHandle(g_threadHandle); // Close the thread handle
+    CloseHandle(g_shutdownEvent);
+    DeleteCriticalSection(&g_cs);
+    // Additional cleanup as necessary
+}
+
 // DLL entry point
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved) {
     switch (ul_reason_for_call) {
-    case DLL_PROCESS_ATTACH: {
-        bool success = true;
-        try {
-            InitializeCriticalSection(&g_cs);
-            if (!LoadOriginalDll()) {
-                DeleteCriticalSection(&g_cs);
-                return FALSE;
-            }
-            
-            HANDLE hThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)InjectScripts, NULL, 0, NULL);
-            if (hThread) {
-                CloseHandle(hThread);
-            } else {
-                Log("Failed to create injection thread");
-                success = false;
-            }
-        }
-        catch (const std::exception& e) {
-            Log("Exception in DLL_PROCESS_ATTACH: " + std::string(e.what()));
-            success = false;
-        }
-        catch (...) {
-            Log("Unknown exception in DLL_PROCESS_ATTACH");
-            success = false;
-        }
-        return success;
-    }
-
-    case DLL_PROCESS_DETACH: {
-        try {
-            EnterCriticalSection(&g_cs);
-            for (auto& module : g_loadedModules) {
-                if (module) {
-                    FreeLibrary(module);
-                    module = NULL;
-                }
-            }
-            g_loadedModules.clear();
-            LeaveCriticalSection(&g_cs);
-
-            if (hOriginalDll) {
-                FreeLibrary(hOriginalDll);
-                hOriginalDll = NULL;
-            }
-            
-            DeleteCriticalSection(&g_cs);
-        }
-        catch (...) {
-            Log("Exception during cleanup in DLL_PROCESS_DETACH");
-        }
+    case DLL_PROCESS_ATTACH:
+        DisableThreadLibraryCalls(hModule); // Disable DLL_THREAD_ATTACH and DLL_THREAD_DETACH to reduce overhead
+        Initialize();
         break;
-    }
+    case DLL_PROCESS_DETACH:
+        Cleanup();
+        break;
     }
     return TRUE;
 }
