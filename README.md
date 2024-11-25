@@ -18,7 +18,7 @@ Spider-Verse Extended works by masquerading as `amd_ags_x64.dll`, implementing t
 ## Installation
 
 1. Download the latest release from the Releases page
-2. Extract `amd_ags_x64.dll` to your game's installation directory
+2. Extract `amd_ags_x64.dll` and `amd_ags_x64_orig.dll` to your game's installation directory
 3. Create a `scripts` folder in the same directory
 4. Place your mod DLLs in the `scripts` folder
 5. Launch the game normally
@@ -42,3 +42,8 @@ The injector works by:
 The project can be compiled using:
 ```bash
 g++ -shared -o amd_ags_x64.dll Spider-Verse-Extended.cpp -lstdc++
+
+## Uninstall
+
+1. Delete `amd_ags_x64.dll`
+2. Rename `amd_ags_x64_orig.dll` back to `amd_ags_x64.dll`
