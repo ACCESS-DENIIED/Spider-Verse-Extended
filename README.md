@@ -37,13 +37,13 @@ The injector works by:
 - Marvel's Spider-Man Remastered PC or Marvel's Spider-Man: Miles Morales PC
 - Visual C++ Redistributable (latest version recommended)
 
+## Uninstall
+
+1. Delete `amd_ags_x64.dll`
+2. Rename `amd_ags_x64_orig.dll` back to `amd_ags_x64.dll`
+
 ## Building from Source
 
 The project can be compiled using:
 ```bash
 g++ -shared -o amd_ags_x64.dll Spider-Verse-Extended.cpp -lstdc++
-
-## Uninstall
-
-1. Delete `amd_ags_x64.dll`
-2. Rename `amd_ags_x64_orig.dll` back to `amd_ags_x64.dll`
