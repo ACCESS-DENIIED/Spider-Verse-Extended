@@ -42,8 +42,11 @@ The injector works by:
 1. Delete `amd_ags_x64.dll`
 2. Rename `amd_ags_x64_orig.dll` back to `amd_ags_x64.dll`
 
-## Building from Source
+## Building the Project
 
-The project can be compiled using:
+The project can be compiled using CMake in release mode:
+
 ```bash
-g++ -shared -o amd_ags_x64.dll Spider-Verse-Extended.cpp -lstdc++
+cmake -S . -B ./build
+cmake --build ./build --config Release
+```
