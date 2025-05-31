@@ -9,6 +9,12 @@
 #include <iomanip>
 #include <vector>
 
+#ifdef _WIN32
+const char PATH_SEPARATOR = '\\';
+#else
+const char PATH_SEPARATOR = '/';
+#endif
+
 // Function pointer declarations for amd_ags_x64.dll
 typedef int(WINAPI *agsInitialize_t)(int, void *, void *, void *);
 typedef int(WINAPI *agsDeInitialize_t)(void *);
